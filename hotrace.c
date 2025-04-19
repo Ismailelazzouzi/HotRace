@@ -132,7 +132,39 @@ bool    insert(t_table *table, t_filed *field)
     return (false);
 }
 
+char *read_line() {
+    static char buffer[BUFFER_SIZE];
+    static int buf_i = 0, buf_size = 0;
+    char *line = malloc(BUFFER_SIZE);
+    int line_len = 0;
+    if (!line) return NULL;
+    while (1) {
+        if (buf_i >= buf_size) {
+            buf_size = read(0, buffer, BUFFER_SIZE);
+            buf_i = 0;
+            if (buf_size <= 0)
+                break;
+        }
+        char c = buffer[buf_i++];
+        if (c == '\n')
+            break;
+        line[line_len++] = c;
+    }
+    line[line_len] = '\0';
+    if (line_len == 0 && buf_size <= 0) {
+        free(line);
+        return NULL;
+    }
+    return line;
+}
+
 int main(void)
 {
-    
+    char *line;
+    while (1)
+    {
+        line = read_line();
+        printf("%s\n", line);
+        free(line);
+    }
 }

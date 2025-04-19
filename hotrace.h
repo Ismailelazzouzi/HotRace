@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include <stdio.h>
 
+#define BUFFER_SIZE 1024
+
 typedef struct s_filed
 {
     char    *keyword;
