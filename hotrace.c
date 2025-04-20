@@ -1,5 +1,11 @@
 #include "hotrace.h"
 
+void ft_putstr_fd(int fd, char *str)
+{
+    while (str && *str)
+        write(fd, str++, 1);
+}
+
 size_t  ft_strlen(char *str)
 {
     int i = 0;
@@ -18,27 +24,21 @@ int ft_strcmp(char *s1, char *s2)
 }
 
 
-t_table *init_table(int size)
+t_table *init_table()
 {
     t_table *table;
-    int     i;
 
+    int i;
+
+    i = 0;
     table = malloc(sizeof(t_table));
     if (!table)
     {
-        write(2 ,"ALLOCATION ERROR!\n", 18);
+        ft_putstr_fd(2, "ALLOCATION FAILED!\n");
             return (NULL);
     }
-    table->size = size;
-    table->fileds = malloc(size * sizeof(t_filed *));
-    if (!table->fileds)
-    {
-        free(table);
-        write(2 ,"ALLOCATION ERROR!\n", 18);
-            return (NULL);
-    }
-    i = 0;
-    while (i < size)
+    table->size = 0;
+    while (i < BUFFER_SIZE)
         table->fileds[i++] = NULL;
     return (table);
 }
@@ -48,17 +48,19 @@ t_filed    *make_field(char *keyword, char *value)
     t_filed *field;
     int  i;
 
+    if (!keyword || !value)
+        return (NULL);
     field = malloc(sizeof(t_filed));
     if (!field)
     {
-        write(2, "Allocation Error!\n", 18);
+        ft_putstr_fd(2, "ALLOCATION FAILED!\n");
         return (NULL);        
     }
     i = 0;
     field->keyword = malloc(ft_strlen(keyword) + 1);
     if (!field->keyword)
     {
-        write(2, "Allocation Error!\n", 18);
+        ft_putstr_fd(2, "ALLOCATION FAILED!\n");
         return (free(field), NULL);        
     }
     while (keyword[i])
@@ -71,7 +73,7 @@ t_filed    *make_field(char *keyword, char *value)
     field->value = malloc(ft_strlen(value) + 1);
     if (!field->value)
     {
-        write(2, "Allocation Error!\n", 18);
+        ft_putstr_fd(2, "ALLOCATION FAILED!\n");
         return (free(field->keyword), free(field), NULL);      
     }
     while (value[i])
@@ -80,6 +82,7 @@ t_filed    *make_field(char *keyword, char *value)
         i++;
     }
     field->value[i] = '\0';
+    field->init = 69;
     return(field->next = NULL, field);
 }
 
@@ -104,10 +107,11 @@ bool    insert(t_table *table, t_filed *field)
 
     if (!table || !field)
         return (false);
-    hash = hashing(field->keyword, table->size);
+    hash = hashing(field->keyword, BUFFER_SIZE);
     if (!table->fileds[hash])
     {
         table->fileds[hash] = field;
+        table->size++;
         return (true);
     }
     current = table->fileds[hash];
@@ -115,16 +119,17 @@ bool    insert(t_table *table, t_filed *field)
     {
         if (ft_strcmp(current->keyword, field->keyword) == 0)
         {
-            free(current->value);
             current->value = field->value;
             field->value = NULL;
             free (field->keyword);
             free (field);
+            table->size++;
             return (true);
         }
         if (!current->next)
         {
             current->next = field;
+            table->size++;
             return (true);
         }
         current = current->next;
@@ -158,13 +163,79 @@ char *read_line() {
     return line;
 }
 
+void    leakcheck()
+{
+    system("leaks hotrace");
+}
+
 int main(void)
 {
-    char *line;
-    while (1)
+    atexit(leakcheck);
+    t_table *table;
+    t_filed *field;
+    char *keyword;
+    char *value;
+
+    table = init_table();
+    while (69)
     {
-        line = read_line();
-        printf("%s\n", line);
-        free(line);
+        keyword = read_line();
+        if (*keyword == 0)
+        {
+            free(keyword);
+            break;
+        }
+        value = read_line();
+        if (*value == 0)
+        {
+            free(keyword);
+            free(value);
+            break;
+        }
+        field = make_field(keyword, value);
+        if (!field)
+            return (ft_putstr_fd(2, "ALLOCATION FAILED!\n"), 1);
+        if (!insert(table, field))
+            return (ft_putstr_fd(2, "error!\n"), 1);
+        free(keyword);
+        free(value);
     }
+    int id;
+    while ((keyword = read_line()) != NULL)
+    {
+        id = hashing(keyword, BUFFER_SIZE);
+        t_filed *current;
+        current = table->fileds[id];
+        if (!current)
+        {
+            ft_putstr_fd(1, keyword);
+            ft_putstr_fd(1, ": Not Found.\n");
+            free (keyword);
+            continue ;
+        }
+        while (current)
+        {
+            if (ft_strcmp(current->keyword, keyword) == 0)
+            {
+                ft_putstr_fd(1, current->value);
+                ft_putstr_fd(1, "\n");
+                int i = 0;
+                while (i < BUFFER_SIZE)
+                {
+                    if (table->fileds[i])
+                    {
+                        free(table->fileds[i]->keyword);
+                        free(table->fileds[i]->value);
+                        free(table->fileds[i]);
+                    }
+                    i++;
+                }
+                free(table),free(keyword),exit(1);
+            }
+            current = current->next;
+        }
+        free(keyword);
+    }
+    free(table);
+    return (0);
 }
